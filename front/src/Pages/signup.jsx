@@ -228,7 +228,7 @@ const handleConfirmOtp = async () => {
               
               <div className="text-center mt-4">
                 <p className="text-gray-400">
-                  Déjà inscrit? <a href="/login" className="text-white hover:underline">Se connecter</a>
+                  Déjà inscrit? <a href="/#/login" className="text-white hover:underline">Se connecter</a>
                 </p>
               </div>
             </div>

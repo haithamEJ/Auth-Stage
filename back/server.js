@@ -5,6 +5,9 @@ const speakeasy = require('speakeasy');
 const qrcode = require('qrcode');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const session = require('express-session');
+const MongoDBStore = require('connect-mongodb-session')(session);
+
 
 
 app.use(express.json());
@@ -16,6 +19,7 @@ app.use(cors(corsOptions));
 
 
 mongoose.connect('mongodb://localhost:27017/stage');
+
 
 
 const UserSchema = mongoose.Schema({
@@ -42,7 +46,7 @@ app.post("/api/signup", async (req, res) => {
         
       
         const secret = speakeasy.generateSecret({
-            name: `YourApp:${email}`
+            name: `Stage:${email}`
         });
         
      
@@ -169,87 +173,7 @@ app.post("/api/verify-totp", async (req, res) => {
 });
 
 
-app.post("/api/verify-totp", async (req, res) => {
-    try {
-        const { token, userId } = req.body;
-        
-        if (!userId || !token) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Both userId and token are required" 
-            });
-        }
-        
-     
-        const user = await UserModel.findById(userId);
-        if (!user) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "User not found" 
-            });
-        }
-        
-       
-        const secretToVerify = user.tempTotpSecret || user.totpSecret;
-        if (!secretToVerify) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "TOTP secret not found for this user" 
-            });
-        }
-        
-       
-        
-      
-        const tokenString = token.toString().replace(/\s+/g, ''); // Remove any whitespace
-        
-        const verified = speakeasy.totp.verify({
-            secret: secretToVerify,
-            encoding: 'base32',
-            token: tokenString,
-            window: 1 
-        });
-        
-       
-        
-        if (verified) {
-           
-            if (user.tempTotpSecret && !user.totpSecret) {
-                user.totpSecret = user.tempTotpSecret;
-                user.tempTotpSecret = undefined;
-            }
-            
-         
-            user.isVerified = true;
-            await user.save();
-            
-           
-            return res.json({ 
-                success: true, 
-                message: "Account verification successful", 
-                user: {
-                    email: user.email,
-                    name: user.name,
-                    isVerified: user.isVerified
-                }
-            });
-        } else {
-         
-            return res.status(401).json({ 
-                success: false, 
-                message: "Invalid TOTP code. Please try again." 
-            });
-        }
-        
-    } catch (error) {
-        console.error("TOTP verification error:", error);
-        res.status(500).json({ 
-            success: false, 
-            message: "Server error during verification",
-            error: error.message 
-        });
-    }
-});
+
 
 
 app.post("/api/login", async (req, res) => {
@@ -378,7 +302,7 @@ app.get("/api/get-qrcode", async (req, res) => {
         } else {
       
             const secret = speakeasy.generateSecret({
-                name: `YourApp:${user.email}`
+                name: `Stage:${user.email}`
             });
             secretToUse = secret.base32;
             
@@ -390,7 +314,7 @@ app.get("/api/get-qrcode", async (req, res) => {
         
         const otpauthUrl = speakeasy.otpauthURL({
             secret: secretToUse,
-            label: `YourApp:${user.email}`,
+            label: `Stage:${user.email}`,
             encoding: 'base32'
         });
         

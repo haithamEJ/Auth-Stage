@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
 
 // Base URL for API calls
 const API_BASE_URL = 'http://localhost:8080/api';
 
-export  function Login() {
+export function Login() {
   // State for form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [urlData, setUrlData] = useState(''); // For QR code
   const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState(''); // To store user ID for OTP verification
+  
+  const navigate = useNavigate();
   
   // Form validation errors
   const [formErrors, setFormErrors] = useState({
@@ -46,42 +49,19 @@ export  function Login() {
         password,
       });
       
-      // Handle successful login
-      if (response.data.success) {
-        if (response.data.requireTOTP) {
-          // If TOTP is required, show OTP modal
-          setShowOtpModal(true);
-          
-          // If we received a QR code (first time setup), show it
-          if (response.data.qrCode) {
-            setUrlData(response.data.qrCode);
-          } else {
-            // Otherwise, fetch the existing QR code
-            fetchQrCode();
-          }
-        }
+      // If TOTP verification is required (for already registered users)
+      if (response.data.requireTOTPVerification) {
+        setUserId(response.data.userId);
+        setShowOtpModal(true);
+      } else {
+        // Handle other response cases if needed
+        console.log('Login response:', response.data);
       }
     } catch (error) {
       console.error('Login error:', error);
       alert(error.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-  
-  // Fetch QR code for existing users
-  const fetchQrCode = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/get-qrcode`, {
-        params: { email }
-      });
-      
-      if (response.data.success) {
-        setUrlData(response.data.qrCode);
-      }
-    } catch (error) {
-      console.error('Failed to fetch QR code:', error);
-      alert('Failed to load QR code. Please try again.');
     }
   };
   
@@ -95,21 +75,15 @@ export  function Login() {
     setIsLoading(true);
     
     try {
-      const response = await axios.post(`${API_BASE_URL}/verify-totp`, {
-        email,
+      const response = await axios.post(`${API_BASE_URL}/verify-login-totp`, {
+        userId: userId,
         token: otp
       });
       
       if (response.data.success) {
-        // Authentication successful
-        alert('Login successful!');
-        setShowOtpModal(false);
-        
-        // Here you would typically:
-        // 1. Store user info in state/context
-        // 2. Redirect to dashboard or home page
-        // For example:
-        // navigate('/dashboard');
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        navigate('/');
       }
     } catch (error) {
       console.error('OTP verification error:', error);
@@ -195,6 +169,15 @@ export  function Login() {
             >
               {isLoading ? 'Chargement...' : 'Valider'}
             </button>
+            
+            <div className="text-center mt-4">
+              <p className="text-gray-400">
+                Pas encore de compte ?{' '}
+                <Link to="/signup" className="text-white hover:underline">
+                  S'inscrire
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -203,15 +186,10 @@ export  function Login() {
       {showOtpModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
-            {urlData && (
-              <div className="flex justify-center mb-4">
-                <div className="w-50 h-50 bg-gray-700 rounded-md flex items-center justify-center p-2">
-                  <img src={urlData} alt="QR Code" className="w-full h-auto" />
-                </div>
-              </div>
-            )}
-            
             <h3 className="text-xl font-bold text-white mb-4 text-center">Entrez le code de vérification</h3>
+            <p className="text-gray-300 mb-4 text-center">
+              Ouvrez votre application d'authentification et saisissez le code à 6 chiffres pour confirmer votre identité.
+            </p>
             
             <div className="mb-6">
               <label htmlFor="otp" className="block text-sm font-medium text-gray-300 mb-1">
@@ -237,8 +215,10 @@ export  function Login() {
               </button>
               <button
                 onClick={handleConfirmOtp}
-                disabled={isLoading}
-                className={`flex-1 py-2 px-4 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition duration-200 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={isLoading || otp.length !== 6}
+                className={`flex-1 py-2 px-4 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition duration-200 ${
+                  (isLoading || otp.length !== 6) ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
               >
                 {isLoading ? 'Chargement...' : 'Confirmer'}
               </button>
