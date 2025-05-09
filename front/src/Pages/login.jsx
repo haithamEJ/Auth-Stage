@@ -2,29 +2,29 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
-// Base URL for API calls
+
 const API_BASE_URL = 'http://localhost:8080/api';
 
 export function Login() {
-  // State for form fields
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [userId, setUserId] = useState(''); // To store user ID for OTP verification
+  const [userId, setUserId] = useState('');
   
   const navigate = useNavigate();
   
-  // Form validation errors
+ 
   const [formErrors, setFormErrors] = useState({
     email: false,
     password: false,
     passwordLength: false,
   });
   
-  // Handle login form submission
+  
   const handleSubmit = async () => {
     // Reset errors
     const errors = {
@@ -35,7 +35,7 @@ export function Login() {
     
     setFormErrors(errors);
     
-    // If there are errors, don't submit
+   
     if (errors.email || errors.password || errors.passwordLength) {
       return;
     }
@@ -43,18 +43,20 @@ export function Login() {
     setIsLoading(true);
     
     try {
-      // Submit login credentials to server
+     
       const response = await axios.post(`${API_BASE_URL}/login`, {
         email,
-        password,
-      });
+        password,},
+        {
+           withCredentials: true
+        });
       
-      // If TOTP verification is required (for already registered users)
+     
       if (response.data.requireTOTPVerification) {
         setUserId(response.data.userId);
         setShowOtpModal(true);
       } else {
-        // Handle other response cases if needed
+      
         console.log('Login response:', response.data);
       }
     } catch (error) {
@@ -65,7 +67,7 @@ export function Login() {
     }
   };
   
-  // Handle OTP verification
+  
   const handleConfirmOtp = async () => {
     if (!otp || otp.length !== 6) {
       alert('Please enter a valid 6-digit code');
@@ -78,20 +80,27 @@ export function Login() {
       const response = await axios.post(`${API_BASE_URL}/verify-login-totp`, {
         userId: userId,
         token: otp
+      }, {
+        withCredentials: true
       });
       
-      if (response.data.success) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-
-        navigate('/');
+     if (response.data.success) {
+     
+      if (response.data.user) {
+      
+        console.log('Login successful:', response.data.user);
       }
-    } catch (error) {
-      console.error('OTP verification error:', error);
-      alert(error.response?.data?.message || 'Verification failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+      
+    
+      navigate('/');
     }
-  };
+  } catch (error) {
+    console.error('OTP verification error:', error);
+    alert(error.response?.data?.message || 'Verification failed. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-600 p-4">

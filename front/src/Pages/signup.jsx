@@ -148,6 +148,7 @@ const handleConfirmOtp = async () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-gray-400"
                   placeholder="votre@email.com"
+                  required
                 />
                 {formErrors.email && (
                   <div className="flex items-center mt-1 text-red-400 text-sm">

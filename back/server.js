@@ -9,6 +9,22 @@ const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
 
 
+const store = new MongoDBStore({
+    uri: 'mongodb://localhost:27017/stage',
+    collection: 'sessions'
+});
+
+app.use(session({
+    secret: 'your-secret-key', 
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 1, // 1 hour
+        httpOnly: true,
+        secure: false 
+    },
+    store: store
+}));
 
 app.use(express.json());
 const corsOptions = {
@@ -32,6 +48,27 @@ const UserSchema = mongoose.Schema({
 });
 
 const UserModel = mongoose.model("users", UserSchema);
+
+function isAuthenticated(req, res, next) {
+    if (req.session && req.session.userId) {
+        next();
+    } else {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+}
+
+app.get("/api/protected", isAuthenticated, (req, res) => {
+    res.json({ message: `Hello ${req.session.email}` });
+});
+
+
+app.post("/api/logout", (req, res) => {
+    req.session.destroy(err => {
+        if (err) return res.status(500).json({ success: false, message: "Logout failed" });
+        res.clearCookie("connect.sid");
+        res.json({ success: true, message: "Logged out successfully" });
+    });
+});
 
 
 app.post("/api/signup", async (req, res) => {
@@ -246,7 +283,14 @@ app.post("/api/verify-login-totp", async (req, res) => {
        
         
         if (verified) {
-           
+            
+            req.session.userId = user._id;
+            req.session.user = {
+                _id: user._id,
+                email: user.email,
+                name: user.name
+            };
+
             return res.json({ 
                 success: true, 
                 message: "Login successful", 
@@ -268,6 +312,14 @@ app.post("/api/verify-login-totp", async (req, res) => {
         console.error("Login TOTP verification error:", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
+});
+
+app.get('/api/me', (req, res) => {
+  if (req.session.user) {
+    res.json(req.session.user); 
+  } else {
+    res.status(401).json({ message: 'Not logged in' });
+  }
 });
 
 

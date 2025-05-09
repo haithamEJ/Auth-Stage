@@ -3,7 +3,7 @@ export function Footer() {
   
   return (
     <footer className="bg-gray-800 text-white">
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-3 py-3">
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <div className="flex items-center space-x-2 mb-2">
@@ -12,31 +12,31 @@ export function Footer() {
               </svg>
               <span className="font-bold text-lg">Stage</span>
             </div>
-            <p className="text-sm text-gray-400">Your professional workspace solution</p>
+            <p className="text-sm text-gray-400">Created by Haitham El Younssi</p>
           </div>
           
           <div className="flex flex-col md:flex-row md:space-x-8 text-center md:text-left">
             <div className="mb-4 md:mb-0">
               <h3 className="font-medium mb-2 text-gray-300">Quick Links</h3>
               <ul className="text-sm space-y-1 text-gray-400">
-                <li><a href="/home" className="hover:text-white transition duration-150">Home</a></li>
-                <li><a href="/dashboard" className="hover:text-white transition duration-150">Dashboard</a></li>
-                <li><a href="/services" className="hover:text-white transition duration-150">Services</a></li>
+                <li><a href="/" className="hover:text-white transition duration-150">Home</a></li>
+                <li><a href="#" className="hover:text-white transition duration-150">Test1</a></li>
+                <li><a href="#" className="hover:text-white transition duration-150">Test2</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-medium mb-2 text-gray-300">Contact</h3>
               <ul className="text-sm space-y-1 text-gray-400">
-                <li><a href="/support" className="hover:text-white transition duration-150">Support</a></li>
-                <li><a href="/contact" className="hover:text-white transition duration-150">Contact Us</a></li>
-                <li><a href="/faq" className="hover:text-white transition duration-150">FAQ</a></li>
+                <li><a href="#" className="hover:text-white transition duration-150">Test1</a></li>
+                <li><a href="#" className="hover:text-white transition duration-150">Test2</a></li>
+                <li><a href="#" className="hover:text-white transition duration-150">Test3</a></li>
               </ul>
             </div>
           </div>
         </div>
         
         <div className="border-t border-gray-700 mt-6 pt-6 text-sm text-gray-400 text-center">
-          <p>&copy; {currentYear} Stage. All rights reserved.</p>
+          <p>&copy; {currentYear} Stage, by Haitham El Younssi.</p>
         </div>
       </div>
     </footer>
