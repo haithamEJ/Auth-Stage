@@ -16,19 +16,29 @@ export function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState(null);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [serverError, setServerError] = useState(false);
   
   const [formErrors, setFormErrors] = useState({
     name: false,
     email: false,
+    emailFormat: false,
     password: false,
     passwordLength: false,
     passwordMatch: false
   });
   
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
   const handleSubmit = async () => {
+    setErrorMessage('');
+    setServerError(false);
+    
     const errors = {
       name: !name,
       email: !email,
+      emailFormat: email && !emailRegex.test(email),
       password: !password,
       passwordLength: password.length > 0 && password.length < 6,
       passwordMatch: password !== confirmPassword
@@ -36,7 +46,7 @@ export function Signup() {
     
     setFormErrors(errors);
     
-    if (errors.name || errors.email || errors.password || errors.passwordLength || errors.passwordMatch) {
+    if (errors.name || errors.email || errors.emailFormat || errors.password || errors.passwordLength || errors.passwordMatch) {
       return;
     }
     
@@ -59,46 +69,83 @@ export function Signup() {
       }
     } catch (error) {
       console.error('Signup error:', error);
-      alert(error.response?.data?.message || 'Signup failed. Please try again.');
+      setServerError(true);
+      setErrorMessage(error.response?.data?.message || 'Échec de l\'inscription. Veuillez réessayer.');
     } finally {
       setIsLoading(false);
     }
   };
   
-
-
-const handleConfirmOtp = async () => {
-  if (!otp || otp.length !== 6) {
-    alert('Please enter a valid 6-digit code');
-    return;
-  }
-  
-  setIsLoading(true);
-  
-  try {
-    const response = await axios.post(`${API_BASE_URL}/verify-totp`, {
-      token: otp,
-      userId
-    });
-    
-    if (response.data.success) {
-      setShowOtpModal(false);
-      setSignupSuccess(true);
-      alert('Account created and verified successfully! You can now login.');
+  const handleConfirmOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      setErrorMessage('Veuillez entrer un code à 6 chiffres valide');
+      return;
     }
-  } catch (error) {
-    console.error('OTP verification error:', error);
-    alert(error.response?.data?.message || 'Verification failed. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+    
+    setErrorMessage('');
+    setIsLoading(true);
+    
+    try {
+      const response = await axios.post(`${API_BASE_URL}/verify-totp`, {
+        token: otp,
+        userId
+      });
+      
+      if (response.data.success) {
+        setShowOtpModal(false);
+        setSignupSuccess(true);
+      }
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      setErrorMessage(error.response?.data?.message || 'Échec de la vérification. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const closeOtpModal = () => {
+      setShowOtpModal(false);
+  };
+  
+  const clearError = (errorType) => {
+    setFormErrors(prev => ({
+      ...prev,
+      [errorType]: false
+    }));
+  };
+  
+ 
+  const clearServerError = () => {
+    setServerError(false);
+    setErrorMessage('');
+  };
+  
+  
+  const clearOtpError = () => {
+    setErrorMessage('');
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-600 p-4">
       <div className="w-full max-w-md">
         <div className="bg-gray-800 shadow-xl rounded-lg p-8 border border-gray-700">
           <h2 className="text-2xl font-bold text-white mb-6 text-center">Créer un compte</h2>
+          
+          {/* Server Error Message Display with X button */}
+          {serverError && (
+            <div className="mb-4 p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded-md relative">
+              <button 
+                onClick={clearServerError}
+                className="absolute top-2 right-2 text-white hover:text-red-300"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <p className="text-white text-sm pr-5">{errorMessage}</p>
+            </div>
+          )}
           
           {signupSuccess ? (
             <div className="text-center py-8">
@@ -110,7 +157,7 @@ const handleConfirmOtp = async () => {
               <h3 className="text-xl font-bold text-white mb-2">Inscription réussie!</h3>
               <p className="text-gray-300 mb-6">Votre compte a été créé avec succès avec l'authentification à deux facteurs.</p>
               <button
-                onClick={() => window.location.href = '/*/login'}
+                onClick={() => window.location.href = '/#/login'}
                 className="w-full py-2 px-4 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition duration-200"
               >
                 Aller à la page de connexion
@@ -131,8 +178,17 @@ const handleConfirmOtp = async () => {
                   placeholder="Votre nom"
                 />
                 {formErrors.name && (
-                  <div className="flex items-center mt-1 text-red-400 text-sm">
-                    Le nom est requis
+                  <div className="flex items-center justify-between mt-1 text-red-400 text-sm">
+                    <span>Le nom est requis</span>
+                    <button 
+                      onClick={() => clearError('name')}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label="Close"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
                 )}
               </div>
@@ -151,8 +207,31 @@ const handleConfirmOtp = async () => {
                   required
                 />
                 {formErrors.email && (
-                  <div className="flex items-center mt-1 text-red-400 text-sm">
-                    L'email est requis
+                  <div className="flex items-center justify-between mt-1 text-red-400 text-sm">
+                    <span>L'email est requis</span>
+                    <button 
+                      onClick={() => clearError('email')}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label="Close"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {formErrors.emailFormat && (
+                  <div className="flex items-center justify-between mt-1 text-red-400 text-sm">
+                    <span>Format d'email invalide</span>
+                    <button 
+                      onClick={() => clearError('emailFormat')}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label="Close"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
                 )}
               </div>
@@ -189,13 +268,31 @@ const handleConfirmOtp = async () => {
                   </button>
                 </div>
                 {formErrors.password && (
-                  <div className="flex items-center mt-1 text-red-400 text-sm">
-                    Le mot de passe est requis
+                  <div className="flex items-center justify-between mt-1 text-red-400 text-sm">
+                    <span>Le mot de passe est requis</span>
+                    <button 
+                      onClick={() => clearError('password')}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label="Close"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
                 )}
                 {formErrors.passwordLength && (
-                  <div className="flex items-center mt-1 text-red-400 text-sm">
-                    Le mot de passe doit contenir au moins 6 caractères
+                  <div className="flex items-center justify-between mt-1 text-red-400 text-sm">
+                    <span>Le mot de passe doit contenir au moins 6 caractères</span>
+                    <button 
+                      onClick={() => clearError('passwordLength')}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label="Close"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
                 )}
               </div>
@@ -213,8 +310,17 @@ const handleConfirmOtp = async () => {
                   placeholder="••••••••"
                 />
                 {formErrors.passwordMatch && (
-                  <div className="flex items-center mt-1 text-red-400 text-sm">
-                    Les mots de passe ne correspondent pas
+                  <div className="flex items-center justify-between mt-1 text-red-400 text-sm">
+                    <span>Les mots de passe ne correspondent pas</span>
+                    <button 
+                      onClick={() => clearError('passwordMatch')}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label="Close"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
                 )}
               </div>
@@ -237,10 +343,21 @@ const handleConfirmOtp = async () => {
         </div>
       </div>
       
-      {/* OTP Modal */}
+      {/* OTP Modal with X button */}
       {showOtpModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-700">
+          <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-700 relative">
+            {/* X Button to close modal */}
+            <button 
+              onClick={closeOtpModal}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            
             <h3 className="text-xl font-bold text-white mb-4 text-center">Configuration de l'authentification à deux facteurs</h3>
             
             <div className="mb-6 text-gray-300 text-sm">
@@ -269,6 +386,22 @@ const handleConfirmOtp = async () => {
                 maxLength={6}
               />
             </div>
+            
+            {/* Error message for OTP verification with X button */}
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded-md relative">
+                <button 
+                  onClick={clearOtpError}
+                  className="absolute top-2 right-2 text-white hover:text-red-300"
+                  aria-label="Close"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <p className="text-white text-sm pr-5">{errorMessage}</p>
+              </div>
+            )}
             
             <button
               onClick={handleConfirmOtp}

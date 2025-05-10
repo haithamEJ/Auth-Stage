@@ -19,7 +19,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 1000 * 60 * 60 * 1, // 1 hour
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 jours as logged in 
         httpOnly: true,
         secure: false 
     },
@@ -41,7 +41,7 @@ mongoose.connect('mongodb://localhost:27017/stage');
 const UserSchema = mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    name: { type: String, required: true },
+    name: { type: String, required: true , unique: true},
     totpSecret: { type: String },
     tempTotpSecret: { type: String },
     isVerified: { type: Boolean, default: false } 
@@ -53,7 +53,7 @@ function isAuthenticated(req, res, next) {
     if (req.session && req.session.userId) {
         next();
     } else {
-        res.status(401).json({ success: false, message: 'Unauthorized' });
+        res.status(401).json({ success: false, message: 'Accès non autorisé.' });
     }
 }
 
@@ -64,9 +64,9 @@ app.get("/api/protected", isAuthenticated, (req, res) => {
 
 app.post("/api/logout", (req, res) => {
     req.session.destroy(err => {
-        if (err) return res.status(500).json({ success: false, message: "Logout failed" });
+        if (err) return res.status(500).json({ success: false, message: "La déconnexion a échoué. Veuillez réessayer." });
         res.clearCookie("connect.sid");
-        res.json({ success: true, message: "Logged out successfully" });
+        res.json({ success: true, message: "Déconnexion réussie" });
     });
 });
 
@@ -76,9 +76,14 @@ app.post("/api/signup", async (req, res) => {
         const { email, password, name } = req.body;
         
        
-        const existingUser = await UserModel.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ success: false, message: "User already exists" });
+        const existingUserByEmail = await UserModel.findOne({ email });
+        if (existingUserByEmail) {
+            return res.status(400).json({ success: false, message: "Cette adresse e-mail est déjà utilisée." });
+        }
+
+         const existingUserByName = await UserModel.findOne({ name });
+        if (existingUserByName) {
+            return res.status(400).json({ success: false, message: "Ce nom d'utilisateur est déjà utilisé." });
         }
         
       
@@ -195,7 +200,7 @@ app.post("/api/verify-totp", async (req, res) => {
             
             return res.status(401).json({ 
                 success: false, 
-                message: "Invalid TOTP code. Please try again." 
+                message: "Code TOTP invalide. Veuillez réessayer." 
             });
         }
         
